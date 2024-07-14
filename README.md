@@ -20,6 +20,7 @@ python3 webshell.py
 
 ![/connect.png](/images/connect.png)
 ![/ignore.png](/images/ignore.png)
+
 `*一定要忽略HTTPS证书`
 
 
@@ -27,6 +28,8 @@ python3 webshell.py
 
 --------
 
-1.0: 修改了错误  
+1.2: 更强大的安全性: 在连接 URL 中添加了逻辑校验参数 passwa ，以防止今后可能会出现的 FastAPI 路径、参数泄露漏洞.  
 
 1.1: 更全面的配置项，舍弃 os.popen 添加了 stderr 输出  
+
+1.0: 修改了错误  
